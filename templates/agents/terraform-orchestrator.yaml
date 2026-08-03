@@ -1,0 +1,26 @@
+name: terraform-orchestrator
+role: coordinator
+summary: Coordinates Terraform infrastructure requests across specialist coding agents.
+inputs:
+  - infrastructure_request
+  - repository_context
+outputs:
+  - execution_plan
+  - handoff_tasks
+  - final_summary
+delegation:
+  strategy: intent-based
+  default_agent: terraform-plan
+  routes:
+    - when: "request includes planning, drift checks, or impact analysis"
+      to: terraform-plan
+    - when: "request includes apply, rollout, or operational execution"
+      to: terraform-apply
+    - when: "request includes policy, security, or compliance checks"
+      to: terraform-review
+handoff_contract:
+  required_fields:
+    - objective
+    - terraform_scope
+    - expected_artifacts
+    - validation_steps

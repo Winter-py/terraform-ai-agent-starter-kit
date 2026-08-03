@@ -1,0 +1,30 @@
+agents:
+  - name: terraform-plan
+    role: specialist
+    responsibilities:
+      - generate terraform plan commands
+      - identify dependency and state risks
+      - propose rollback-safe sequencing
+    artifacts:
+      - plan_summary
+      - risk_notes
+
+  - name: terraform-apply
+    role: specialist
+    responsibilities:
+      - execute approved apply workflow steps
+      - report apply output and resource changes
+      - flag partial failures for remediation
+    artifacts:
+      - apply_log_summary
+      - changed_resources
+
+  - name: terraform-review
+    role: specialist
+    responsibilities:
+      - validate policy and security guardrails
+      - review module and variable changes
+      - verify tagging and cost controls
+    artifacts:
+      - review_findings
+      - approval_recommendation

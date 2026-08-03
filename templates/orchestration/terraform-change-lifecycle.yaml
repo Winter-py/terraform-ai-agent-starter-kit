@@ -1,0 +1,34 @@
+workflow: terraform-change-lifecycle
+entrypoint: terraform-orchestrator
+stages:
+  - name: intake
+    action: capture_scope
+    output: normalized_request
+
+  - name: planning
+    delegate_to: terraform-plan
+    requires:
+      - normalized_request
+    output: plan_summary
+
+  - name: review
+    delegate_to: terraform-review
+    requires:
+      - plan_summary
+    output: review_findings
+
+  - name: execution
+    delegate_to: terraform-apply
+    requires:
+      - plan_summary
+      - review_findings
+    guardrails:
+      - review_findings.approval_recommendation == "approve"
+    output: apply_log_summary
+
+  - name: closure
+    action: publish_final_summary
+    requires:
+      - plan_summary
+      - review_findings
+      - apply_log_summary

@@ -1,0 +1,31 @@
+patterns:
+  - name: plan-before-apply
+    use_when:
+      - "all infrastructure changes"
+    sequence:
+      - terraform-plan
+      - terraform-review
+      - terraform-apply
+    success_criteria:
+      - plan_summary exists
+      - approval_recommendation == "approve"
+
+  - name: investigate-drift
+    use_when:
+      - "terraform state drift or unexpected plan output"
+    sequence:
+      - terraform-plan
+      - terraform-review
+    success_criteria:
+      - risk_notes include remediation options
+
+  - name: safe-remediation-loop
+    use_when:
+      - "apply step reports partial failure"
+    sequence:
+      - terraform-apply
+      - terraform-plan
+      - terraform-review
+      - terraform-apply
+    success_criteria:
+      - apply_log_summary reports converged state
