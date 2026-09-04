@@ -2,6 +2,15 @@
 
 Multi-agent orchestration templates, delegation patterns, and agent definitions for AI coding agents managing infrastructure with Terraform.
 
+**Not GitHub Copilot-specific.** "Copilot" in the name is generic for "AI coding agent," not
+a dependency on GitHub Copilot the product. The templates in [`templates/`](templates/) are
+plain, runtime-agnostic YAML — role/routing/stage definitions with no vendor SDK fields —
+built to be read and executed by whatever agent runtime you point at them: GitHub Copilot,
+Claude Code, Cursor, a custom orchestrator, etc. `.github/copilot-instructions.md` is one
+on-ramp into that content (the path GitHub Copilot reads natively), not the only one — see
+"Agent memory" further down for the `AGENTS.md` alternative most other coding agents read
+the same way.
+
 ## Included starter templates
 
 ```text
