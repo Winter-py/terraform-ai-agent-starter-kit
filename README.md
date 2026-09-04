@@ -5,6 +5,9 @@ Multi-agent orchestration templates, delegation patterns, and agent definitions 
 ## Included starter templates
 
 ```text
+.github/
+├── copilot-instructions.md
+└── mcp-allowlist.yml
 templates/
 ├── agents/
 │   ├── terraform-orchestrator.yaml
@@ -59,3 +62,24 @@ whatever happened to be said in a previous conversation.
   agent is editing the templates. When you copy the templates into your own repository,
   copy and rewrite this file too so it reflects *your* Terraform conventions, not this
   starter kit's.
+
+## Tool access: `.github/mcp-allowlist.yml`
+
+`.github/copilot-instructions.md` tells an agent what it may *do*; this file tells it what
+it may *reach*. [.github/mcp-allowlist.yml](.github/mcp-allowlist.yml) is a default-deny list
+of MCP servers agents are permitted to call in this repo — anything not explicitly listed is
+denied.
+
+- Keep it scoped to what the Terraform workflow actually needs: registry/provider docs,
+  cloud provider documentation search, and read/comment access to GitHub for the review
+  stage. Deny everything else, especially:
+  - filesystem servers with access to `*.tfstate` or `*.tfvars` (state and vars can hold
+    secrets in plaintext)
+  - anything with shell/exec capability (an unreviewed path to `apply`)
+  - servers that can reach cloud provider APIs directly, bypassing `terraform plan`/`apply`
+- Server names in the file must match how each server is registered in your agent runtime's
+  MCP config — rename the entries to fit your setup rather than assuming the ones shipped
+  here resolve to anything.
+- Update this file and `.github/copilot-instructions.md` together: the allowlist enforces
+  the boundary the instructions file states in prose ("do not call external network APIs
+  unless explicitly listed here").
