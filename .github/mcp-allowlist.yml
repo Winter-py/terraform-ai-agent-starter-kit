@@ -1,0 +1,18 @@
+# Repository MCP allow list
+# Only servers listed here may be invoked by agents operating on this repo.
+# Server names below must match how the server is registered in your agent
+# runtime's MCP config (client_id/name) — rename to fit your setup.
+allowed_servers:
+  - terraform-registry  # HashiCorp's Terraform Registry MCP server: provider/module
+                         # docs, resource & data-source schemas. Read-only, no state access.
+  - github-remote        # GitHub APIs via remote MCP — PR/issue read + comment, for the
+                         # review/approval stage (see terraform-review in templates/agents/).
+  - cloud-docs           # provider documentation search (AWS/Azure/GCP docs MCP server —
+                         # point this at whichever cloud(s) your Terraform targets).
+
+# Never allowlist, regardless of what a task seems to need:
+#   - filesystem servers with access to *.tfstate or *.tfvars (state/vars can hold secrets)
+#   - any server with shell/exec capability (that's an unreviewed apply path)
+#   - servers that can reach cloud provider APIs directly (bypasses terraform plan/apply)
+denied_servers:
+  - "*"                  # implicit deny for anything not listed above
