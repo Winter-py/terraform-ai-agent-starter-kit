@@ -34,6 +34,43 @@ templates/
 4. Enforce guardrails before apply actions (policy/security approval).
 5. Copy and adapt [.github/copilot-instructions.md](.github/copilot-instructions.md) (below) so
    your repo's own conventions and guardrails, not just this starter kit's, are on record.
+6. Configure branch protection on `main` (see below) — [.github/CODEOWNERS](.github/CODEOWNERS)
+   and [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) don't enforce
+   anything on their own until required reviews are turned on.
+
+## Repo settings: branch protection
+
+CODEOWNERS only blocks a merge if the repo is configured to require code owner review.
+Without this step it's just documentation. Requires `gh` authenticated as a repo admin:
+
+```powershell
+# 1. Get the current repo name
+$repo = gh repo view --json nameWithOwner -q .nameWithOwner
+
+# 2. Require PR review + code owner review before merging to main
+$body = @'
+{
+  "required_status_checks": null,
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "require_code_owner_reviews": true
+  },
+  "restrictions": null
+}
+'@
+$body | gh api -X PUT "repos/$repo/branches/main/protection" --input -
+```
+
+- `require_code_owner_reviews: true` is what makes [.github/CODEOWNERS](.github/CODEOWNERS)
+  actually gate merges to `templates/agents/`, `templates/orchestration/`,
+  `.github/workflows/`, and the other paths it lists — mirroring the plan-before-apply,
+  approval-gated pattern this kit encodes for Terraform changes, applied to changes on the
+  kit itself.
+- `enforce_admins: false` lets repo admins bypass the rule; set it to `true` if you want the
+  guardrail to apply to admins too, including you.
+- Re-run this after renaming the default branch or changing the required review count —
+  the API call isn't idempotent against config drift, it just sets the state each time.
 
 ## Agent memory: `.github/copilot-instructions.md` / `AGENTS.md`
 
