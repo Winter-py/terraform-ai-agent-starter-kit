@@ -9,7 +9,8 @@ Multi-agent orchestration templates, delegation patterns, and agent definitions 
 ├── copilot-instructions.md
 ├── mcp-allowlist.yml
 └── workflows/
-    └── agent-triage.yml
+    ├── agent-triage.yml
+    └── terraform-validate.yml
 templates/
 ├── agents/
 │   ├── terraform-orchestrator.yaml
@@ -81,24 +82,26 @@ $body | gh api -X PUT "repos/$repo/branches/main/protection" --input -
 - Re-run this after renaming the default branch or changing the required review count —
   the API call isn't idempotent against config drift, it just sets the state each time.
 
-## Repo settings: environments (for `deploy.yml`)
+## Repo settings: environments (only if you add a real apply workflow)
 
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml) gates on `environment:
-production`. That name has to exist as a **GitHub Environment** under repo Settings →
-Environments — it's a GitHub feature, unrelated to anything in `Terraform/`, and nothing
-creates it automatically. Until it exists, dispatching the workflow fails with something
-like "Value 'production' is not valid."
+This repo intentionally ships no `terraform apply` workflow — see the guardrails in
+[.github/copilot-instructions.md](.github/copilot-instructions.md). When you copy this kit
+and wire up a real environment, gate its apply job behind a **GitHub Environment**
+(Settings → Environments) with a required reviewer, so CI enforces the same
+`review_findings.approval_recommendation == "approve"` gate that
+[templates/orchestration/terraform-change-lifecycle.yaml](templates/orchestration/terraform-change-lifecycle.yaml)
+requires in the templates. A workflow step written as `environment: production` does
+nothing on its own until that name exists in repo settings — until then, dispatching it
+fails with something like "Value 'production' is not valid."
 
 ```powershell
 # 1. Get the current repo name
 $repo = gh repo view --json nameWithOwner -q .nameWithOwner
 
-# 2. Create the "production" environment
+# 2. Create the environment (name it for your real target, not necessarily "production")
 gh api -X PUT "repos/$repo/environments/production" | Out-Null
 
-# 3. Require a human reviewer before the environment can be used — the deploy-side
-#    equivalent of the review_findings.approval_recommendation == "approve" gate this
-#    kit puts in front of terraform-apply
+# 3. Require a human reviewer before the environment can be used
 $reviewerId = gh api users/your-username --jq .id
 $body = @"
 {
@@ -121,10 +124,9 @@ $branchBody | gh api -X POST "repos/$repo/environments/production/deployment-bra
 ```
 
 - Replace `your-username` with whoever (or use `"type": "Team"` with a team id instead)
-  should approve production deploys.
-- Repeat for any other environment name a workflow references — e.g. if
-  `Terraform/AWS/enviroment/` grows a `staging` region, give it its own environment and
-  reviewer set rather than reusing `production`'s.
+  should approve applies.
+- Give every real environment its own GitHub Environment and reviewer set — never reuse
+  one environment's approval for a different target.
 
 ## Agent memory: `.github/copilot-instructions.md` / `AGENTS.md`
 
@@ -186,9 +188,10 @@ itself, rather than to Terraform changes. It fires on issues labeled `needs-tria
 2. **Acts**: routes the issue based on this repo's own scope and guardrails, not generic
    bug/feature/question buckets — flags guardrail-sensitive asks (`auto-approve`, state
    edits, bypassed review) for a maintainer instead of auto-labeling, flags issues about a
-   real Terraform run as out of scope (this kit has no backend, state, or credentials to
-   reproduce that against), and otherwise labels by template area (`templates/agents`,
-   `templates/delegation`, `templates/orchestration`) plus issue type.
+   real Terraform run as out of scope (this kit has no *real* backend, state, or
+   credentials — anywhere — to reproduce that against), and otherwise labels by template
+   area (`templates/agents`, `templates/delegation`, `templates/orchestration`) plus issue
+   type.
 3. **Evaluates**: comments back on the issue with the labels applied and the reasoning, and
    links the plan artifact and workflow run for traceability.
 
@@ -196,3 +199,18 @@ It expects these labels to already exist on the repo — `gh issue edit --add-la
 on a label that doesn't exist, it won't create one: `needs-triage` (the trigger),
 `guardrail-risk`, `out-of-scope`, `area/agents`, `area/delegation`, `area/orchestration`,
 `area/docs`, `bug`, `enhancement`, `question`.
+
+## Example automation: `.github/workflows/terraform-validate.yml`
+
+Runs on any PR or push to `main` that touches `examples/**`. It only ever runs
+`terraform fmt -check`, `terraform init -backend=false`, and `terraform validate` —
+no `plan`, no `apply`, no credentials, matching the "Tools to avoid" guardrail in
+[.github/copilot-instructions.md](.github/copilot-instructions.md). It's what a PR
+touching the example environment gets checked against instead of a human running
+`terraform fmt`/`validate` locally before pushing.
+
+- Matrixed over `environment: [aws-eu-west-2]` — add a new example directory under
+  `examples/` to that list to get it covered without duplicating the job.
+- This is deliberately the ceiling of what CI does to real HCL in this repo. A workflow
+  that runs `terraform plan` or `apply` here would need real cloud credentials, which is
+  exactly what this kit says never to add.
