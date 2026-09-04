@@ -1,0 +1,125 @@
+name: Agent triage
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  triage:
+    if: contains(github.event.issue.labels.*.name, 'needs-triage')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- 1. PLAN ----
+      - name: Produce structured plan
+        id: plan
+        run: |
+          cat > plan.md <<'PLAN'
+          # Triage plan for issue #${{ github.event.issue.number }}
+
+          Steps:
+          1. Read the issue title and body.
+          2. Check for guardrail-sensitive language (auto-approve, state rm, -target,
+             -replace, bypassed review) and flag it for a maintainer instead of
+             auto-labeling — see the guardrails in .github/copilot-instructions.md.
+          3. Check whether the issue is about this repo's YAML templates (in scope) or
+             about a real Terraform run/state/cloud error (out of scope — this kit ships
+             templates only, with no backend, state, or credentials).
+          4. If in scope, map to a template area — agents | delegation | orchestration |
+             docs, matching templates/ — plus an issue type: bug | enhancement | question.
+          5. Apply labels and comment with the category and reasoning.
+          PLAN
+          echo "plan<<EOF" >> "$GITHUB_OUTPUT"
+          cat plan.md >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Upload plan as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-plan-${{ github.event.issue.number }}
+          path: plan.md
+
+      # ---- 2. ACT ----
+      # (Real version would invoke a Copilot agent or MCP-backed action, restricted to the
+      # servers in .github/mcp-allowlist.yml. For the lab we stub the action with keyword
+      # matching; the plan/act/evaluate shape is what matters. Labels referenced below —
+      # guardrail-risk, out-of-scope, area/agents, area/delegation, area/orchestration,
+      # area/docs, bug, enhancement, question — must already exist on the repo.)
+      - name: Categorize and label
+        id: categorize
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          text="$ISSUE_TITLE
+          $ISSUE_BODY"
+
+          labels=()
+          reason=""
+
+          if echo "$text" | grep -qiE "auto-approve|terraform state rm|-target|-replace|bypass (review|approval)|skip (plan|review)"; then
+            # Guardrail-sensitive requests are flagged, not auto-routed — these are
+            # human-approved operations per the kit's guardrails, never autonomous steps.
+            labels+=("guardrail-risk")
+            reason="Mentions a guardrail-sensitive operation (auto-approve / state edit / bypassed review). Needs a maintainer, not an autonomous label."
+          elif echo "$text" | grep -qiE "terraform apply failed|plan (drift|error)|state file|backend error|real infrastructure|production outage"; then
+            # This kit has no state, backend, or credentials — it can't be the site of a
+            # live Terraform failure, so route these to maintainers as out of scope.
+            labels+=("out-of-scope")
+            reason="Describes a live Terraform run or state issue. This repo is a template starter kit with no backend or credentials — it can't reproduce or fix live infra problems."
+          else
+            if echo "$text" | grep -qiE "terraform-plan|terraform-review|terraform-apply|terraform-orchestrator|agent definition"; then
+              labels+=("area/agents")
+            elif echo "$text" | grep -qiE "delegation|routing pattern|sequence pattern|safe-remediation-loop"; then
+              labels+=("area/delegation")
+            elif echo "$text" | grep -qiE "lifecycle|orchestration|staged change"; then
+              labels+=("area/orchestration")
+            elif echo "$text" | grep -qiE "readme|documentation|docs\b"; then
+              labels+=("area/docs")
+            fi
+
+            if echo "$text" | grep -qiE "error|crash|broken|bug|doesn't work|incorrect"; then
+              labels+=("bug")
+            elif echo "$text" | grep -qiE "would be nice|feature request|add support|proposal"; then
+              labels+=("enhancement")
+            else
+              labels+=("question")
+            fi
+            reason="Matched template area and issue type from the title/body keywords."
+          fi
+
+          for label in "${labels[@]}"; do
+            gh issue edit "$ISSUE_NUMBER" --add-label "$label"
+          done
+
+          {
+            echo "labels=${labels[*]}"
+            echo "reason<<EOF"
+            echo "$reason"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # ---- 3. EVALUATE ----
+      - name: Comment with traceability record
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          LABELS: ${{ steps.categorize.outputs.labels }}
+          REASON: ${{ steps.categorize.outputs.reason }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Agent triage complete.
+
+          Labels applied: $LABELS
+          Reasoning: $REASON
+
+          See workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Plan artifact: triage-plan-${{ github.event.issue.number }}"
