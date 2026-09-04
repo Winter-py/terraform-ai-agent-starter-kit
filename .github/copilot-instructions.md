@@ -1,10 +1,11 @@
 # Project conventions for Copilot
 
-This repository is a **starter kit**, not a live deployment. It ships YAML templates that
-define multi-agent orchestration for Terraform work: agent definitions, a change lifecycle
-workflow, and delegation patterns. There is no Terraform state, no backend, and no cloud
-credentials here — nothing in this repo should ever run `terraform apply` against real
-infrastructure.
+This repository is a **starter kit**, not a live deployment. `templates/` ships YAML that
+defines multi-agent orchestration for Terraform work: agent definitions, a change lifecycle
+workflow, and delegation patterns. `examples/` ships one deliberately toy AWS environment
+(local backend, no credentials, no account IDs) so those templates have real HCL to route
+against. There is no *real* Terraform state, remote backend, or cloud credentials anywhere
+in this repo — nothing here should ever run `terraform apply` against real infrastructure.
 
 ## Repository layout
 
@@ -13,6 +14,8 @@ templates/
 ├── agents/          # agent definitions (coordinator + specialists)
 ├── delegation/      # reusable routing/sequence patterns
 └── orchestration/   # staged change lifecycle workflows
+examples/
+└── aws-eu-west-2/   # toy environment (local backend) the templates route against
 ```
 
 ## Editing the templates
@@ -75,8 +78,10 @@ These are the point of the kit — do not weaken them to simplify a template:
 
 ## Tools to avoid
 
-- Do not run `terraform init`, `plan`, `apply`, or `destroy` from this repo — there is no
-  configuration to act on and no credentials should be present.
+- `terraform init`/`plan` against `examples/aws-eu-west-2/` is fine — it's a local-backend
+  toy with no credentials. Never run `terraform apply` or `destroy` from this repo, and
+  never add a second example with a remote backend or real account/region values; no
+  configuration in this repo should ever be able to touch real infrastructure.
 - Do not call external network APIs unless explicitly listed in
   `.github/mcp-allowlist.yml`. That file is default-deny; if a server isn't in
   `allowed_servers`, treat it as unreachable rather than asking for an exception.
