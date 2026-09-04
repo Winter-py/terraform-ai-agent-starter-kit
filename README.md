@@ -7,7 +7,9 @@ Multi-agent orchestration templates, delegation patterns, and agent definitions 
 ```text
 .github/
 ├── copilot-instructions.md
-└── mcp-allowlist.yml
+├── mcp-allowlist.yml
+└── workflows/
+    └── agent-triage.yml
 templates/
 ├── agents/
 │   ├── terraform-orchestrator.yaml
@@ -83,3 +85,23 @@ denied.
 - Update this file and `.github/copilot-instructions.md` together: the allowlist enforces
   the boundary the instructions file states in prose ("do not call external network APIs
   unless explicitly listed here").
+
+## Example automation: `.github/workflows/agent-triage.yml`
+
+A worked example of the plan/act/evaluate shape applied to issue triage on this repo
+itself, rather than to Terraform changes. It fires on issues labeled `needs-triage` and:
+
+1. **Plans**: writes a triage plan to an uploaded artifact before touching anything.
+2. **Acts**: routes the issue based on this repo's own scope and guardrails, not generic
+   bug/feature/question buckets — flags guardrail-sensitive asks (`auto-approve`, state
+   edits, bypassed review) for a maintainer instead of auto-labeling, flags issues about a
+   real Terraform run as out of scope (this kit has no backend, state, or credentials to
+   reproduce that against), and otherwise labels by template area (`templates/agents`,
+   `templates/delegation`, `templates/orchestration`) plus issue type.
+3. **Evaluates**: comments back on the issue with the labels applied and the reasoning, and
+   links the plan artifact and workflow run for traceability.
+
+It expects these labels to already exist on the repo — `gh issue edit --add-label` errors
+on a label that doesn't exist, it won't create one: `needs-triage` (the trigger),
+`guardrail-risk`, `out-of-scope`, `area/agents`, `area/delegation`, `area/orchestration`,
+`area/docs`, `bug`, `enhancement`, `question`.
