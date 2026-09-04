@@ -18,6 +18,12 @@ templates/
 │   └── terraform-delegation-patterns.yaml
 └── orchestration/
     └── terraform-change-lifecycle.yaml
+examples/
+└── aws-eu-west-2/
+    ├── terraform.tf
+    ├── variables.tf
+    ├── main.tf
+    └── outputs.tf
 ```
 
 ## What each template provides
@@ -25,6 +31,9 @@ templates/
 - **Agent definitions**: coordinator + specialist agents for planning, review, and apply flows.
 - **Orchestration workflow**: a staged Terraform change lifecycle from intake through closure.
 - **Delegation patterns**: reusable routing/sequence patterns for plan-before-apply, drift handling, and safe remediation loops.
+- **Example environment**: a toy, local-backend AWS environment
+  ([examples/aws-eu-west-2/](examples/aws-eu-west-2/)) so the templates above have real HCL
+  to plan/review/apply against instead of staying purely abstract.
 
 ## Usage
 
@@ -71,6 +80,51 @@ $body | gh api -X PUT "repos/$repo/branches/main/protection" --input -
   guardrail to apply to admins too, including you.
 - Re-run this after renaming the default branch or changing the required review count —
   the API call isn't idempotent against config drift, it just sets the state each time.
+
+## Repo settings: environments (for `deploy.yml`)
+
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) gates on `environment:
+production`. That name has to exist as a **GitHub Environment** under repo Settings →
+Environments — it's a GitHub feature, unrelated to anything in `Terraform/`, and nothing
+creates it automatically. Until it exists, dispatching the workflow fails with something
+like "Value 'production' is not valid."
+
+```powershell
+# 1. Get the current repo name
+$repo = gh repo view --json nameWithOwner -q .nameWithOwner
+
+# 2. Create the "production" environment
+gh api -X PUT "repos/$repo/environments/production" | Out-Null
+
+# 3. Require a human reviewer before the environment can be used — the deploy-side
+#    equivalent of the review_findings.approval_recommendation == "approve" gate this
+#    kit puts in front of terraform-apply
+$reviewerId = gh api users/your-username --jq .id
+$body = @"
+{
+  "reviewers": [
+    { "type": "User", "id": $reviewerId }
+  ],
+  "deployment_branch_policy": {
+    "protected_branches": false,
+    "custom_branch_policies": true
+  }
+}
+"@
+$body | gh api -X PUT "repos/$repo/environments/production" --input -
+
+# 4. Restrict deploys to the main branch
+$branchBody = @'
+{ "name": "main" }
+'@
+$branchBody | gh api -X POST "repos/$repo/environments/production/deployment-branch-policies" --input -
+```
+
+- Replace `your-username` with whoever (or use `"type": "Team"` with a team id instead)
+  should approve production deploys.
+- Repeat for any other environment name a workflow references — e.g. if
+  `Terraform/AWS/enviroment/` grows a `staging` region, give it its own environment and
+  reviewer set rather than reusing `production`'s.
 
 ## Agent memory: `.github/copilot-instructions.md` / `AGENTS.md`
 
