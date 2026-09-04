@@ -3,6 +3,6 @@ resource "aws_s3_bucket" "logs" {
 
   tags = {
     environment = var.environment
-    managed_by  = "terraform-copilot-agent-starter-kit"
+    managed_by  = "terraform-ai-agent-starter-kit"
   }
 }
