@@ -77,5 +77,6 @@ These are the point of the kit — do not weaken them to simplify a template:
 
 - Do not run `terraform init`, `plan`, `apply`, or `destroy` from this repo — there is no
   configuration to act on and no credentials should be present.
-- Do not call external network APIs, cloud provider APIs, or state backends while working
-  in this repository.
+- Do not call external network APIs unless explicitly listed in
+  `.github/mcp-allowlist.yml`. That file is default-deny; if a server isn't in
+  `allowed_servers`, treat it as unreachable rather than asking for an exception.
