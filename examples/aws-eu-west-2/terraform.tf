@@ -1,8 +1,22 @@
+# Example environment for the templates in templates/ to route work against — not a
+# live environment. Backend is local on purpose so cloning this repo never points at
+# real state. Swap for a remote backend (S3, Azure, GCS, ...) before using this as the
+# starting point for an actual environment.
 terraform {
-  backend "s3" {
-    bucket  = "terraform-state-<account_id>"
-    encrypt = true
-    key     = "regions/eu-west-2/terraform.tfstate"
-    region  = "eu-west-2"
+  required_version = "~> 1.7"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
+
+  backend "local" {
+    path = "terraform.tfstate"
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
 }
