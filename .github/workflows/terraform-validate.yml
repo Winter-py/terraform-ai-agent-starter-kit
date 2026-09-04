@@ -1,0 +1,43 @@
+name: Terraform validate
+
+# Safe, credential-free CI for the example environment in examples/. Never runs
+# terraform plan or apply — see .github/copilot-instructions.md: nothing in this repo
+# should ever run terraform apply against real infrastructure. This only enforces the
+# HCL conventions documented there: fmt-clean, and terraform validate passing.
+
+on:
+  pull_request:
+    paths:
+      - "examples/**"
+  push:
+    branches: [main]
+    paths:
+      - "examples/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [aws-eu-west-2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: terraform fmt -check
+        working-directory: examples/${{ matrix.environment }}
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend, no credentials)
+        working-directory: examples/${{ matrix.environment }}
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: examples/${{ matrix.environment }}
+        run: terraform validate
