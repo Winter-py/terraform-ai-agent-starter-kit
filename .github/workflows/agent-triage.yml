@@ -2,7 +2,7 @@ name: Agent triage
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 permissions:
   contents: read
@@ -11,7 +11,11 @@ permissions:
 
 jobs:
   triage:
-    if: contains(github.event.issue.labels.*.name, 'needs-triage')
+    # Scoped to the labeled event carrying needs-triage itself, not "does the issue
+    # currently have it" — an issue created with the label pre-attached emits both
+    # opened and labeled for the same action, and matching on the issue's label list
+    # would fire this job once per event instead of once per label addition.
+    if: github.event.label.name == 'needs-triage'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
