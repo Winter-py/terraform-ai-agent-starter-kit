@@ -1,0 +1,27 @@
+# CODEOWNERS for this repo's own guardrails, not a generic template — replace
+# @your-username with real owners/teams once you fork this kit.
+
+# Workflows run with repo secrets and can be re-triggered by any labeled issue/PR;
+# treat changes here like a change to a production deploy pipeline.
+/.github/workflows/                @your-username
+
+# Default-deny MCP allowlist — the boundary on what agents can reach. Adding a
+# server here is a security decision, not a routine edit.
+/.github/mcp-allowlist.yml         @your-username
+
+# The guardrail memory every agent loads before touching this repo: plan-before-
+# apply, the approval gate, state-mutation rules. Weakening it here weakens it
+# everywhere an agent reads this repo.
+/.github/copilot-instructions.md   @your-username
+
+# Agent definitions route work to terraform-plan/-review/-apply; a bad edit here
+# can open an apply path that skips review.
+/templates/agents/                 @your-username
+
+# The staged change lifecycle enforces plan-before-apply and the approval gate
+# end to end — the highest blast-radius template in the kit to get wrong.
+/templates/orchestration/          @your-username
+
+# Delegation/routing patterns (plan-before-apply, safe-remediation-loop) encode
+# the same guardrails in a different shape.
+/templates/delegation/             @your-username
