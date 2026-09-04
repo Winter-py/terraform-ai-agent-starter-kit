@@ -1,4 +1,4 @@
-# terraform-copilot-agent-starter-kit
+# terraform-ai-agent-starter-kit
 
 Multi-agent orchestration templates, delegation patterns, and agent definitions for AI coding agents managing infrastructure with Terraform.
 
