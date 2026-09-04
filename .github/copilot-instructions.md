@@ -31,7 +31,9 @@ examples/
   `requires` an artifact must be downstream of the agent that declares it in `artifacts`.
 - Keep templates runtime-agnostic. No vendor-specific SDK fields, no hardcoded account IDs,
   regions, role ARNs, workspace names, or repository URLs — use placeholders and document
-  them.
+  them. "Copilot" in this repo's name is generic for "AI coding agent," not a dependency on
+  GitHub Copilot specifically — these templates must stay equally usable from Claude Code,
+  Cursor, a custom orchestrator, or any other agent runtime.
 - New templates go in the matching subdirectory and get added to the README tree and the
   "What each template provides" list in the same change.
 
